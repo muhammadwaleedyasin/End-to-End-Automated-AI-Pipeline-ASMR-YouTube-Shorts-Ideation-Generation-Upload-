@@ -1,0 +1,879 @@
+{
+  "name": "Automated AI YouTube Shorts Factory for ASMR (Seedance)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "function findSceneEntries(obj) {\n  const scenes = [];\n\n  for (const [key, value] of Object.entries(obj)) {\n    if (key.toLowerCase().startsWith(\"scene\") && typeof value === \"string\") {\n      scenes.push(value);\n    } else if (typeof value === \"object\" && value !== null) {\n      scenes.push(...findSceneEntries(value));\n    }\n  }\n\n  return scenes;\n}\n\nlet output = [];\n\ntry {\n  const inputData = items[0].json;\n  const scenes = findSceneEntries(inputData);\n\n  if (scenes.length === 0) {\n    throw new Error(\"No scene keys found at any level.\");\n  }\n\n  output = scenes.map(scene => ({ description: scene }));\n} catch (e) {\n  throw new Error(\"Could not extract scenes properly. Details: \" + e.message);\n}\n\nreturn output;\n"
+      },
+      "id": "2250b529-c1ad-40f9-9d8a-195edbb1fe66",
+      "name": "Unbundle Prompts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3504,
+        176
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/mmaudio-v2 ",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "= {\n        \"prompt\": \"ASMR Soothing sound effects. {{ $('Prompts AI Agent').item.json.output.Sound }}\",\n        \"duration\": 10,\n        \"video_url\": \"{{ $json.data.outputs[0] }}\"\n  }\n",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "2150dc98-1c16-4d88-b794-e0425f468d07",
+      "name": "Create Sounds",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3696,
+        400
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/mmaudio-v2/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fd480b93-b887-4abf-a4ff-33613b992361",
+      "name": "Get Sounds",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4224,
+        400
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "id": "25ac2988-5cc9-45a6-ae59-16c1daf1742f",
+      "name": "Wait for Sounds",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        3920,
+        400
+      ],
+      "typeVersion": 1.1,
+      "webhookId": "d6dd510a-e10f-4686-a4f0-6fde6d7b4382"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    video_urls: items.map(item => item.json.video.url)\n  }\n];"
+      },
+      "id": "de997a64-a3b5-48e0-ad1a-8083bba29e93",
+      "name": "List Elements",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3504,
+        592
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"tracks\": [\n    {\n      \"id\": \"1\",\n      \"type\": \"video\",\n      \"keyframes\": [\n        { \"url\": \"{{ $json.video_urls[0] }}\", \"timestamp\": 0, \"duration\": 10 },\n        { \"url\": \"{{ $json.video_urls[1] }}\", \"timestamp\": 10, \"duration\": 10 },\n        { \"url\": \"{{ $json.video_urls[2] }}\", \"timestamp\": 20, \"duration\": 10 }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "6b44f7cb-6180-4600-aa71-8d2fdaca3e33",
+      "name": "Sequence Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3696,
+        592
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "8f0235e8-0477-4cd0-9899-fafe39ec4738",
+      "name": "Get Final Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4224,
+        592
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "id": "e4fef757-a951-4dd9-b9c9-8f886583090e",
+      "name": "Wait for Final Video",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        3920,
+        592
+      ],
+      "typeVersion": 1.1,
+      "webhookId": "1f5b323c-13be-4999-87e2-6bc667acca81"
+    },
+    {
+      "parameters": {},
+      "id": "5ec26bd0-4532-47dc-8ef7-e7a2094b71ea",
+      "name": "Think",
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "position": [
+        3024,
+        480
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1"
+        },
+        "options": {}
+      },
+      "id": "60fce897-6e61-4091-b179-09fadb97244f",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        2656,
+        400
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Give me 3 video prompts based on the previous \n\nUse the Think tool to review your output",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Role: You are a prompt-generation AI specializing in satisfying, ASMR-style video prompts for kinetic sand. Your task is to generate a multi-scene video sequence that vividly shows a tool (like a knife, scoop, or press) interacting with kinetic sand in a clean, high-detail setting.\n\nYour writing must follow this style:\n\nSatisfying, tactile realism.\nMacro-level detail with a tight focus on the tool interacting with the sand's unique texture.\nThe tool must always be in motion — slicing, scooping, pressing, or crumbling the sand. Never idle or static.\nCamera terms are allowed (e.g. macro view, top-down shot, slow-motion).\n\nEach scene must contain all of the following, expressed through detailed visual language:\n\n✅ The kinetic sand (from the Idea)\n✅ The environment or surface (from the Environment)\n✅ The texture, structure, and behavior of the sand as it's being manipulated\n✅ A visible tool (knife, scoop, mold) actively interacting with the sand\n\nDescriptions should show:\n\nThe physical makeup of the sand — is it layered with different colors, sparkly, smooth, or matte? Emphasize its granular, yet cohesive structure.\nHow the sand responds to the tool — clean slicing, soft crumbling, perfect imprints, satisfying deformation, or a cascading collapse.\nThe interaction between the tool and the sand — sand grains momentarily sticking to the tool, the smooth surface left behind, the crisp edges of a cut.\nAny ASMR-relevant sensory cues like the satisfying crunch, the soft hiss of falling grains, or the shimmer of glitter, but always shown visually — not narrated.\n\nTone:\n\nSatisfying, mesmerizing, tactile.\nNo poetic metaphors, emotion, or storytelling.\nAvoid fantasy or surreal imagery.\nAll description must feel physically grounded and visually appealing.\n\nLength:\n\nEach scene must be between 1,000 and 2,000 characters.\nNo shallow or repetitive scenes — each must be immersive, descriptive, and specific.\nEach scene should explore a distinct phase of the action, a different camera perspective, or a new behavior of the sand.\n\nInputs:\n\nIdea: \"{{ $json.idea }}\"\nEnvironment: \"{{ $json.environment_prompt }}\"\nSound: \"{{ $json.sound_prompt }}\"\n\nFormat:\n\nIdea: \"...\"\nEnvironment: \"...\"\nSound: \"...\"\n\nScene 1: \"...\"\nScene 2: \"...\"\nScene 3: \"...\"\n(and so on)"
+        }
+      },
+      "id": "90c1d120-15a4-4a45-8311-d40008aa0e66",
+      "name": "Prompts AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        3152,
+        176
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "[\n  {\n    \"Caption\": \"Diver Removes Nets Off Whale 🐋 #whalerescue #marinelife #oceanrescue #seahelpers #love #nature #instagood #explore #viral #savenature #oceanguardians #cleanoceans\",\n    \"Idea\": \"Diver carefully cuts tangled net from distressed whale in open sea\",\n    \"Environment\": \"Open ocean, sunlight beams through water, diver and whale, cinematic realism\",\n    \"Sound\": \"Primary sound description under 15 words\",\n    \"Status\": \"for production\"\n  }\n]\n"
+      },
+      "id": "d9ed4c9b-a08b-4765-bf82-8fce64ad71ac",
+      "name": "Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        2816,
+        400
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "d35c5f73-7e81-4764-96e6-9158e6676ebb",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        1936,
+        176
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Idea\": \"An obsidian rock being sliced with a shimmering knife\",\n  \"Environment\": \"Clean studio table, subtle light reflections\",\n  \"Sound\": \"Crisp slicing, deep grinding, and delicate crumbling\",\n  \"Scene 1\": \"Extreme macro shot: a razor-sharp, polished knife blade presses into the dark, granular surface of an obsidian rock, just beginning to indent.\",\n  \"Scene 2\": \"Close-up: fine, iridescent dust particles erupt from the point of contact as the blade cuts deeper into the obsidian, catching the studio light.\",\n  \"Scene 3\": \"Mid-shot: the knife, held perfectly steady, has formed a shallow, clean groove across the obsidian's shimmering surface, revealing a new, smooth texture.\"\n}"
+      },
+      "id": "0bf8f6d5-be96-4e86-a044-6d99482bc024",
+      "name": "Parser2",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        3344,
+        400
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-lite-t2v-480p",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"aspect_ratio\": \"9:16\",\n  \"duration\": 10,\n  \"prompt\": \"VIDEO THEME: {{ $('Prompts AI Agent').item.json.output.Idea }} | WHAT HAPPENS IN THE VIDEO: {{ $json.description }} | WHERE THE VIDEO IS SHOT: {{ $('Prompts AI Agent').item.json.output.Environment }}\"\n}\n",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 3000
+            }
+          }
+        }
+      },
+      "id": "b0121cb2-4984-422e-b2d5-9a99f8390e9d",
+      "name": "Create Clips",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3696,
+        176
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": 120
+      },
+      "id": "ee723a00-3374-4443-b158-b3d83d6c59c4",
+      "name": "Wait for Clips",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        3920,
+        176
+      ],
+      "typeVersion": 1.1,
+      "webhookId": "b063a299-7e04-4830-a5e3-db7d0859fa57"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.wavespeed.ai/api/v3/predictions/{{ $json.data.id }}/result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "9d3bf3e1-642b-40df-9e1f-e101a682b80c",
+      "name": "Get Clips",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4224,
+        176
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Get Final Video').item.json.video_url }}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "id": "b776fd42-9cc8-40c7-afd1-57280686ac29",
+      "name": "Download Final Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        4560,
+        784
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "=AI ASMR : {{ $('Update Final Video to Sheet').item.json.idea }}",
+        "options": {
+          "description": "=AI-Generated Video Idea: {{ $('Update Final Video to Sheet').item.json.idea }}\n\nThis video was created automatically using our automated workflow #asmrai #asmr #n8n",
+          "notifySubscribers": true,
+          "privacyStatus": "public",
+          "tags": "=asmr, viral, asmrai, n8n, automation"
+        }
+      },
+      "id": "4b701d21-b20d-404e-b68c-7c25776b5bf0",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "position": [
+        4752,
+        784
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=✅ Your new video is ready!  **Title:** {{ $('Update Final Video to Sheet').item.json.idea }}  \nWatch it here: \nhttps://www.youtube.com/watch?v={{ $('Upload to YouTube').item.json.id }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "b92cc25c-58f4-497e-ba12-60afc7c84ec1",
+      "name": "Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        5040,
+        784
+      ],
+      "typeVersion": 1.2,
+      "webhookId": "7da9ebe5-a93f-4c16-8447-644cd87bea4c"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1"
+        },
+        "options": {}
+      },
+      "id": "a6ffabc4-71f1-44d6-b5c7-164fd58eafeb",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        2240,
+        384
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "sendTo": "user@example.com",
+        "subject": "✅ Your new video is ready!",
+        "message": "=✅ Your new video is ready!  **Title:** {{ $('Update Final Video to Sheet').item.json.idea }}  Watch it here: https://www.youtube.com/watch?v={{ $('Upload to YouTube').item.json.id }}",
+        "options": {
+          "senderName": "Bilsimaging -n8n Automation"
+        }
+      },
+      "id": "3e61f6d7-f195-4700-92e7-f48f01d133db",
+      "name": "Gmail Notification",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        5040,
+        960
+      ],
+      "typeVersion": 2.1,
+      "webhookId": "6694d0f4-d056-4e91-86d0-a24d13a85c87"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Generate one short, trendy, and viral ASMR video idea. Describe the core concept in less than 10 words. Do not explain it, just state the idea.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI that specializes in identifying viral trends on platforms like TikTok and YouTube Shorts. Your job is to brainstorm a single, simple, and satisfying ASMR video concept. You must only return the idea as a single line of plain text. Do not add any extra words, formatting, or explanation."
+        }
+      },
+      "id": "57fb347c-b4a8-4b2f-a9d2-4760315b24d4",
+      "name": "1. Generate Trendy Idea",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        2240,
+        176
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "content": "### Step 1: AI Brainstorms an Idea\nThis workflow starts with a Schedule Trigger. The first AI agent generates a simple, trendy ASMR concept. The second agent expands this into a full production plan (caption, environment, etc.).",
+        "height": 180,
+        "width": 940,
+        "color": 3
+      },
+      "id": "22e26bba-a4e3-437f-b2db-47e9f6ad8fae",
+      "name": "Note: AI Ideation",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1952,
+        -48
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "### Step 2: Scene Generation & Video Creation\nThe plan is used to generate detailed scene descriptions. Then, we call the Wavespeed AI (Seedance) and Fal AI APIs to create the video clips and sound effects in parallel.",
+        "height": 180,
+        "width": 600,
+        "color": 3
+      },
+      "id": "3a11b89a-1584-4c55-9d90-61aafb4444f1",
+      "name": "Note: Asset Generation",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2992,
+        -48
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "### Step 3: Final Assembly\nThe video clips are stitched together.",
+        "height": 180,
+        "width": 660,
+        "color": 3
+      },
+      "id": "4990a607-546e-4035-8179-92741b9df2b6",
+      "name": "Note: Final Assembly",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3696,
+        -48
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "### Step 4: Distribution & Logging\nThe final video is uploaded to YouTube, the Google Sheet is updated, and notifications are sent.",
+        "height": 180,
+        "width": 960,
+        "color": 3
+      },
+      "id": "3934ee7e-c99f-41ad-9ffa-e5f49f4f7cd1",
+      "name": "Note: Distribution",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4480,
+        -48
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Take the following trendy ASMR idea and expand it into a full production plan using your required JSON format. Use the examples below for inspiration on how to format the \"Idea\" field.\n\nThe short ASMR idea is:\n[[\n{{ $json.output }}\n]]\n\nHave your final expanded \"Idea\" field be in this format: \"(color/style) (object) being (action)\". \nExamples for your inspiration: layered rainbow kinetic sand being sliced, sparkly purple soap being scooped, neon green slime being pressed.\n\nUse the Think tool to review your output.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=**Role**: You are an AI designed to generate 1 immersive, satisfying idea based on a user-provided topic. Your output must be formatted as a JSON array (single line) and follow all the rules below exactly.\n\n***\nRULES:\n\nOnly return 1 idea at a time.\n\nThe user will provide a key topic (e.g. \"kinetic sand slicing,\" \"satisfying sand scooping,\" \"ASMR sand sounds\").\n\nThe Idea must:\n\nBe under 13 words.\n\nDescribe an interesting and viral-worthy moment, action, or event related to the provided topic.\n\nThe Caption must be:\n\nShort, punchy, and viral-friendly.\n\nInclude one relevant emoji.\n\nInclude exactly 12 hashtags in this order:\n** 4 topic-relevant hashtags\n** 4 all-time most popular hashtags\n** 4 currently trending hashtags\n\nAll hashtags must be lowercase.\n\nSet Status to \"for production\" (always).\n\nThe Environment must:\n\nBe under 20 words.\n\nMatch the action in the Idea exactly.\n\nClearly describe:\n\nWhere the event is happening (e.g. minimalist white surface, clean studio table)\nKey visuals or background details (e.g. bright lighting, subtle glitter)\nStyle of scene (e.g. macro close-up, cinematic slow-motion)\n\nThe Sound must:\n\nBe under 15 words.\n\nDescribe the primary sound that makes sense to happen in the video. This will be fed to a sound model later on.\n\n\n***\nOUTPUT FORMAT (single-line JSON array):\n\n[\n  {\n    \"Caption\": \"That crunch! 🤤 #kineticsand #satisfyingvideos #asmrsand #sand #oddlysatisfying #viral #fyp #explore #trending #tiktok #diy #crafts\",\n    \"Idea\": \"Slicing through a block of layered rainbow kinetic sand\",\n    \"Environment\": \"Macro close-up on a clean, bright white surface, cinematic slow-motion\",\n    \"Sound\": \"Crisp, crunchy slicing sounds with a soft, gentle hiss\",\n    \"Status\": \"for production\"\n  }\n]"
+        }
+      },
+      "id": "b13ecd52-3d17-4f49-9ba1-8d0863a38f93",
+      "name": "2. Enrich Idea into Plan",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        2640,
+        176
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_NAME"
+        },
+        "columns": {
+          "value": {
+            "idea": "={{ $json.output[0].Idea }}",
+            "caption": "={{ $json.output[0].Caption }}",
+            "production": "In Progress",
+            "sound_prompt": "={{ $json.output[0].Sound }}",
+            "environment_prompt": "={{ $json.output[0].Environment }}"
+          },
+          "mappingMode": "defineBelow"
+        },
+        "options": {}
+      },
+      "id": "10cf9ffa-2f51-49bd-bf8b-7c3e65290925",
+      "name": "3. Log New Idea to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        2992,
+        176
+      ],
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_NAME"
+        },
+        "columns": {
+          "value": {
+            "production": "Done",
+            "youtube_url": "=",
+            "final_output": "={{ $json.video_url }}"
+          },
+          "mappingMode": "defineBelow"
+        },
+        "options": {}
+      },
+      "id": "03add851-2479-4186-9f55-99b9f58d1e92",
+      "name": "Update Final Video to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        4560,
+        592
+      ],
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_NAME"
+        },
+        "columns": {
+          "value": {
+            "youtube_url": "=https://www.youtube.com/watch?v={{ $('Upload to YouTube').item.json.id }}"
+          },
+          "mappingMode": "defineBelow"
+        },
+        "options": {}
+      },
+      "id": "b56892ef-6b06-4510-ab51-27840c35f125",
+      "name": "Update Sheet with Youtube Link",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        5040,
+        592
+      ],
+      "typeVersion": 4.5
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "2. Enrich Idea into Plan",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Prompts AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "2. Enrich Idea into Plan",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Prompts AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Clips": {
+      "main": [
+        [
+          {
+            "node": "Create Sounds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sounds": {
+      "main": [
+        [
+          {
+            "node": "List Elements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Clips": {
+      "main": [
+        [
+          {
+            "node": "Wait for Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Sounds": {
+      "main": [
+        [
+          {
+            "node": "Wait for Sounds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Elements": {
+      "main": [
+        [
+          {
+            "node": "Sequence Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sequence Video": {
+      "main": [
+        [
+          {
+            "node": "Wait for Final Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Clips": {
+      "main": [
+        [
+          {
+            "node": "Get Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Final Video": {
+      "main": [
+        [
+          {
+            "node": "Update Final Video to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Sounds": {
+      "main": [
+        [
+          {
+            "node": "Get Sounds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompts AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Unbundle Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "1. Generate Trendy Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unbundle Prompts": {
+      "main": [
+        [
+          {
+            "node": "Create Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "2. Enrich Idea into Plan",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Prompts AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Gmail Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Sheet with Youtube Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "1. Generate Trendy Idea",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Final Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Final Video": {
+      "main": [
+        [
+          {
+            "node": "Get Final Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Generate Trendy Idea": {
+      "main": [
+        [
+          {
+            "node": "2. Enrich Idea into Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Enrich Idea into Plan": {
+      "main": [
+        [
+          {
+            "node": "3. Log New Idea to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Log New Idea to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Prompts AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Final Video to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Download Final Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "11206c49-bbd6-4c7f-a482-a4f2ef8de908",
+  "meta": {
+    "instanceId": "e0bb115a595a8bf84d17c49d85cc268b3f20e01d5da919de2af2c23cb7825759"
+  },
+  "id": "ZwUJ7uT4x-OsBNWgFZMGQ",
+  "tags": []
+}
